@@ -4,6 +4,7 @@
 
 ## 현재 포함된 기능
 - 민아 / 윤아 독서 기록 분리
+- 한글책 / 영어책 목록 및 통계 분리\n- 책별 선택형 5점 별점 평가
 - 표지 촬영 또는 사진 선택
 - 사진 크기 자동 축소 및 브라우저 내 저장(IndexedDB)
 - 한국어 OCR 시도(Tesseract.js `kor+eng`) 후 제목 수정
@@ -94,6 +95,24 @@ create policy "Users can delete their own book covers"
 on storage.objects for delete to authenticated
 using (bucket_id = 'book-covers' and (storage.foldername(name))[1] = auth.uid()::text);
 ```
+
+### 기존 Supabase 프로젝트를 이미 만들었다면: 언어 구분 열 추가
+기존 테이블에 아래 SQL을 한 번 실행하세요.
+```sql
+alter table public.book_records
+add column if not exists language text not null default 'ko'
+check (language in ('ko','en'));
+```
+기존 기록은 자동으로 `ko`(한글책)로 분류됩니다.
+
+### 별점 기능을 클라우드 동기화에도 저장하려면
+기존 Supabase 테이블에 아래 SQL을 한 번 실행하세요.
+```sql
+alter table public.book_records
+add column if not exists rating smallint
+check (rating between 1 and 5 or rating is null);
+```
+별점을 선택하지 않은 기록은 `null`로 저장됩니다. 로컬 저장만 사용하는 경우 SQL 실행은 필요하지 않습니다.
 
 ### 3. 앱에서 연결
 1. 앱 오른쪽 위 ⚙ 설정을 엽니다.

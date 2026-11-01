@@ -23,6 +23,10 @@
       <button class="reader-tab" data-reader="yuna">윤아</button>
       <span class="reader-hint">아이별 기록은 따로 저장돼요</span>
     </section>
+    <section class="language-switch" aria-label="책 언어 선택">
+      <button class="language-tab active" data-language="ko">한글책</button>
+      <button class="language-tab" data-language="en">영어책</button>
+    </section>
 
     <section class="month-head">
       <div><p class="eyebrow">READING JOURNAL</p><h2 id="monthTitle">이번 달 독서</h2></div>
@@ -69,12 +73,29 @@
       </label>
       <div id="ocrStatus" class="ocr-status" aria-live="polite">사진을 등록하면 제목을 자동으로 읽어볼 수 있어요.</div>
       <button type="button" id="ocrBtn" class="secondary-btn" disabled>사진에서 제목 인식하기</button>
+      <label class="field-label" for="bookLanguage">책 종류</label>
+      <select id="bookLanguage" class="text-input">
+        <option value="ko">한글책</option>
+        <option value="en">영어책</option>
+      </select>
       <label class="field-label" for="bookTitle">책 제목 <em>필수</em></label>
       <input id="bookTitle" class="text-input" maxlength="180" placeholder="인식한 제목을 확인하거나 직접 입력" required>
       <label class="field-label" for="readDate">읽은 날짜</label>
       <input id="readDate" class="text-input" type="date" required>
       <label class="field-label" for="memo">메모 <span>선택</span></label>
       <textarea id="memo" class="text-input" rows="2" maxlength="500" placeholder="다시 읽음, 아이가 좋아한 부분 등"></textarea>
+      <label class="field-label">책 만족도 <span>선택</span></label>
+      <div class="rating-picker" role="group" aria-label="책 만족도 별점">
+        <div class="rating-stars" id="ratingStars">
+          <button type="button" class="rating-star" data-rating="1" aria-label="1점">★</button>
+          <button type="button" class="rating-star" data-rating="2" aria-label="2점">★</button>
+          <button type="button" class="rating-star" data-rating="3" aria-label="3점">★</button>
+          <button type="button" class="rating-star" data-rating="4" aria-label="4점">★</button>
+          <button type="button" class="rating-star" data-rating="5" aria-label="5점">★</button>
+        </div>
+        <span id="ratingLabel" class="rating-label">평가하지 않음</span>
+        <button type="button" id="clearRating" class="clear-rating">초기화</button>
+      </div>
       <div class="modal-actions"><button type="button" class="secondary-btn" data-close="bookDialog">취소</button><button type="submit" id="saveBookBtn" class="primary-btn">기록 저장</button></div>
       <p class="privacy-note">사진과 기록은 이 기기에 저장됩니다. 클라우드 동기화는 설정에서 Supabase를 연결한 경우에만 사용할 수 있어요.</p>
     </form>

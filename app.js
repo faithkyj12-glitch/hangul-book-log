@@ -3,11 +3,25 @@
   const $ = id => document.getElementById(id);
   const DB_NAME = "our-home-book-log";
   const DB_VERSION = 1;
-  let db, activeReader = "mina", viewMonth = new Date(), selectedDate = dateKey(new Date());
-  let coverData = null, editingId = null, cloudClient = null, cloudUser = null, cloudReady = false;
+  let db, activeReader = "mina", activeLanguage = "ko", viewMonth = new Date(), selectedDate = dateKey(new Date());
+  let coverData = null, editingId = null, currentRating = 0, cloudClient = null, cloudUser = null, cloudReady = false;
   let records = [];
   const readerNames = {mina:"민아", yuna:"윤아"};
   const configKey = "booklog-supabase-config";
+
+
+  function setRating(value) {
+    currentRating = Math.max(0, Math.min(5, Number(value)||0));
+    document.querySelectorAll(".rating-star").forEach(btn => {
+      btn.classList.toggle("active", Number(btn.dataset.rating) <= currentRating);
+      btn.setAttribute("aria-pressed", String(Number(btn.dataset.rating)===currentRating));
+    });
+    $("ratingLabel").textContent = currentRating ? `${currentRating}점 / 5점` : "평가하지 않음";
+  }
+  function ratingMarkup(value) {
+    const n=Math.max(0,Math.min(5,Number(value)||0));
+    return n ? `<div class="rating-detail" aria-label="${n}점">${"★".repeat(n)}${"☆".repeat(5-n)} <small>${n}/5</small></div>` : `<p class="help-text">별점 평가 없음</p>`;
+  }
 
   function dateKey(d) { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; }
   function parseDate(s) { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
@@ -31,7 +45,7 @@
   function putLocal(item) { return new Promise((resolve,reject)=>{const r=store("readwrite").put(item);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error);}); }
   function deleteLocal(key) { return new Promise((resolve,reject)=>{const r=store("readwrite").delete(key);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error);}); }
 
-  function readerRecords() { return records.filter(r=>r.reader===activeReader); }
+  function readerRecords() { return records.filter(r=>r.reader===activeReader && (r.language || "ko")===activeLanguage); }
   function monthRecords() { return readerRecords().filter(r=>monthKey(r.date)===dateKey(new Date(viewMonth.getFullYear(),viewMonth.getMonth(),1)).slice(0,7)); }
   function selectedRecords() { return readerRecords().filter(r=>r.date===selectedDate).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||"")); }
   function render() {
@@ -81,7 +95,7 @@
       const row=document.createElement("article");row.className="book-row";
       const img=document.createElement("img");img.className="book-cover";img.alt="책 표지";img.src=r.cover||"";
       if(!r.cover){img.classList.add("no-cover");img.alt="표지 사진 없음";img.src="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="100"><rect width="100%" height="100%" fill="#f5e6d9"/><text x="50%" y="54%" text-anchor="middle" font-size="30">📖</text></svg>');}
-      const info=document.createElement("div");info.className="book-info";info.innerHTML=`<strong>${escapeHtml(r.title)}</strong><small>${escapeHtml(readerNames[r.reader])}${r.memo?` · ${escapeHtml(r.memo)}`:""}</small>`;
+      const info=document.createElement("div");info.className="book-info";info.innerHTML=`<strong>${escapeHtml(r.title)}</strong><small>${escapeHtml(readerNames[r.reader])} · ${r.language==="en"?"영어책":"한글책"}${r.rating?` · <span class="rating-inline">${"★".repeat(r.rating)}</span>`:""}${r.memo?` · ${escapeHtml(r.memo)}`:""}</small>`;
       const actions=document.createElement("div");actions.className="row-actions";
       const detail=document.createElement("button");detail.className="tiny-btn";detail.textContent="보기";detail.onclick=()=>showDetail(r.id);
       const del=document.createElement("button");del.className="tiny-btn";del.textContent="삭제";del.onclick=()=>removeRecord(r.id);
@@ -93,7 +107,7 @@
     [...mr].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,8).forEach(r=>{
       const item=document.createElement("div");item.className="recent-item";
       const img=document.createElement("img");img.className="mini-cover";img.alt="";img.src=r.cover||"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50"><rect width="100%" height="100%" fill="#f5e6d9"/><text x="50%" y="58%" text-anchor="middle" font-size="18">📖</text></svg>');
-      const d=document.createElement("div");d.innerHTML=`<strong>${escapeHtml(r.title)}</strong><small>${escapeHtml(r.date)} · ${escapeHtml(readerNames[r.reader])}</small>`;
+      const d=document.createElement("div");d.innerHTML=`<strong>${escapeHtml(r.title)}</strong><small>${escapeHtml(r.date)} · ${escapeHtml(readerNames[r.reader])} · ${r.language==="en"?"영어책":"한글책"}</small>`;
       item.append(img,d);list.appendChild(item);
     });
     if(!list.children.length)list.innerHTML='<p class="help-text">이번 달 기록이 아직 없어요.</p>';
@@ -101,20 +115,23 @@
   async function refresh() { records=await getAllLocal(); render(); }
   function showDetail(recordId) {
     const r=records.find(x=>x.id===recordId);if(!r)return;
-    $("detailContent").innerHTML=`<div class="detail-text">${r.cover?`<img class="detail-cover" src="${r.cover}" alt="책 표지">`:""}<p class="eyebrow">BOOK DETAIL</p><h2>${escapeHtml(r.title)}</h2><p>${escapeHtml(r.date)} · ${escapeHtml(readerNames[r.reader])}</p><p>${escapeHtml(r.memo||"메모 없음")}</p></div><div class="modal-actions"><button class="secondary-btn" id="editRecordBtn">수정하기</button><button class="primary-btn" id="deleteRecordDetailBtn">삭제하기</button></div>`;
+    $("detailContent").innerHTML=`<div class="detail-text">${r.cover?`<img class="detail-cover" src="${r.cover}" alt="책 표지">`:""}<p class="eyebrow">BOOK DETAIL</p><h2>${escapeHtml(r.title)}</h2><p>${escapeHtml(r.date)} · ${escapeHtml(readerNames[r.reader])} · ${r.language==="en"?"영어책":"한글책"}</p>${ratingMarkup(r.rating)}<p>${escapeHtml(r.memo||"메모 없음")}</p></div><div class="modal-actions"><button class="secondary-btn" id="editRecordBtn">수정하기</button><button class="primary-btn" id="deleteRecordDetailBtn">삭제하기</button></div>`;
     $("editRecordBtn").onclick=()=>{closeDialog("detailDialog");editRecord(recordId);};
     $("deleteRecordDetailBtn").onclick=()=>removeRecord(recordId);
     openDialog("detailDialog");
   }
   function resetBookForm() {
-    $("bookForm").reset();coverData=null;editingId=null;$("coverPreview").hidden=true;$("coverPreview").src="";$("photoPlaceholder").hidden=false;$("ocrBtn").disabled=true;$("ocrStatus").textContent="사진을 등록하면 제목을 자동으로 읽어볼 수 있어요.";
-    $("readDate").value=selectedDate;$("saveBookBtn").textContent="기록 저장";
+    $("bookForm").reset();coverData=null;editingId=null;setRating(0);$("coverPreview").hidden=true;$("coverPreview").src="";$("photoPlaceholder").hidden=false;$("ocrBtn").disabled=true;$("ocrStatus").textContent="사진을 등록하면 제목을 자동으로 읽어볼 수 있어요.";
+    $("readDate").value=selectedDate;$("bookLanguage").value=activeLanguage;$("saveBookBtn").textContent="기록 저장";
   }
   function openNewBook() { resetBookForm();openDialog("bookDialog");setTimeout(()=>$("bookTitle").focus(),100); }
   function editRecord(recordId) {
     const r=records.find(x=>x.id===recordId);if(!r)return;
     resetBookForm();editingId=r.id;coverData=r.cover||null;
-    $("bookTitle").value=r.title;$("readDate").value=r.date;$("memo").value=r.memo||"";
+    activeLanguage=r.language||"ko";
+    document.querySelectorAll(".language-tab").forEach(b=>b.classList.toggle("active",b.dataset.language===activeLanguage));
+    $("bookLanguage").value=activeLanguage;
+    $("bookTitle").value=r.title;$("readDate").value=r.date;$("memo").value=r.memo||"";setRating(r.rating||0);
     if(r.cover){$("coverPreview").src=r.cover;$("coverPreview").hidden=false;$("photoPlaceholder").hidden=true;$("ocrBtn").disabled=false;}
     $("saveBookBtn").textContent="수정 저장";openDialog("bookDialog");
   }
@@ -154,7 +171,7 @@
     const title=$("bookTitle").value.trim(), date=$("readDate").value;
     if(!title||!date){toast("책 제목과 읽은 날짜를 입력해 주세요.");return;}
     const previous=editingId?records.find(r=>r.id===editingId):null;
-    const item={id:editingId||id(),reader:activeReader,title,date,memo:$("memo").value.trim(),cover:coverData||(previous&&previous.cover)||null,createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),syncStatus:"local"};
+    const item={id:editingId||id(),reader:activeReader,language:$("bookLanguage").value,title,date,rating:currentRating,memo:$("memo").value.trim(),cover:coverData||(previous&&previous.cover)||null,createdAt:previous?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),syncStatus:"local"};
     await putLocal(item);closeDialog("bookDialog");selectedDate=date;viewMonth=parseDate(date);await refresh();toast("독서 기록을 저장했어요.");
     if(cloudReady&&cloudUser) syncRecord(item).catch(e=>{console.error(e);toast("기기는 저장됐지만 클라우드 동기화에 실패했어요.");});
   }
@@ -196,7 +213,7 @@
       const {error:uploadError}=await cloudClient.storage.from("book-covers").upload(coverPath,blob,{contentType:"image/jpeg",upsert:true});
       if(uploadError)throw uploadError;
     }
-    const payload={id:r.id,user_id:cloudUser.id,reader:r.reader,title:r.title,read_date:r.date,memo:r.memo||"",cover_path:coverPath,created_at:r.createdAt,updated_at:r.updatedAt};
+    const payload={id:r.id,user_id:cloudUser.id,reader:r.reader,language:r.language||"ko",title:r.title,read_date:r.date,rating:r.rating||null,memo:r.memo||"",cover_path:coverPath,created_at:r.createdAt,updated_at:r.updatedAt};
     const {error}=await cloudClient.from("book_records").upsert(payload,{onConflict:"id"});
     if(error)throw error;
     r.syncStatus="synced";await putLocal(r);
@@ -213,7 +230,7 @@
         let cover=null;
         if(c.cover_path){const {data:blobData,error:downloadError}=await cloudClient.storage.from("book-covers").download(c.cover_path);if(!downloadError&&blobData)cover=await new Promise(resolve=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.readAsDataURL(blobData);});}
         const existing=(await getAllLocal()).find(x=>x.id===c.id);
-        const item={id:c.id,reader:c.reader,title:c.title,date:c.read_date,memo:c.memo||"",cover:cover||(existing?.cover)||null,createdAt:c.created_at||new Date().toISOString(),updatedAt:c.updated_at||new Date().toISOString(),syncStatus:"synced"};
+        const item={id:c.id,reader:c.reader,language:c.language||"ko",title:c.title,date:c.read_date,rating:c.rating||0,memo:c.memo||"",cover:cover||(existing?.cover)||null,createdAt:c.created_at||new Date().toISOString(),updatedAt:c.updated_at||new Date().toISOString(),syncStatus:"synced"};
         await putLocal(item);
       }
       await refresh();$("cloudMessage").textContent="동기화가 완료됐어요.";
@@ -221,6 +238,11 @@
   }
 
   document.querySelectorAll(".reader-tab").forEach(b=>b.addEventListener("click",()=>{activeReader=b.dataset.reader;render();}));
+  document.querySelectorAll(".rating-star").forEach(b=>b.addEventListener("click",()=>setRating(b.dataset.rating)));
+  $("clearRating").addEventListener("click",()=>setRating(0));
+
+  document.querySelectorAll(".language-tab").forEach(b=>b.addEventListener("click",()=>{activeLanguage=b.dataset.language;document.querySelectorAll(".language-tab").forEach(x=>x.classList.toggle("active",x===b));selectedDate=dateKey(new Date());render();}));
+  $("bookLanguage").addEventListener("change",e=>{activeLanguage=e.target.value;document.querySelectorAll(".language-tab").forEach(b=>b.classList.toggle("active",b.dataset.language===activeLanguage));});
   $("prevMonth").addEventListener("click",()=>{viewMonth=new Date(viewMonth.getFullYear(),viewMonth.getMonth()-1,1);selectedDate=dateKey(viewMonth);render();});
   $("nextMonth").addEventListener("click",()=>{viewMonth=new Date(viewMonth.getFullYear(),viewMonth.getMonth()+1,1);selectedDate=dateKey(viewMonth);render();});
   $("addBookBtn").addEventListener("click",openNewBook);$("emptyAddBtn").addEventListener("click",openNewBook);

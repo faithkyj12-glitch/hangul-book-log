@@ -1,4 +1,4 @@
-const CACHE="home-book-log-v1";
+const CACHE="home-book-log-v3";
 const CORE=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE))));
 self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
