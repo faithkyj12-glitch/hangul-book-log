@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ef">
+  <meta name="description" content="아이별 한글책 독서 기록과 일별·월별 독서 통계를 관리하는 앱">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <title>우리집 책기록</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brandmark" aria-hidden="true">책</div>
+    <div class="brandcopy"><h1>우리집 책기록</h1><p>읽은 책을 차곡차곡 기록해요</p></div>
+    <button id="settingsBtn" class="icon-btn" aria-label="설정" title="설정">⚙</button>
+  </header>
+
+  <main>
+    <section class="reader-switch" aria-label="독자 선택">
+      <button class="reader-tab active" data-reader="mina">민아</button>
+      <button class="reader-tab" data-reader="yuna">윤아</button>
+      <span class="reader-hint">아이별 기록은 따로 저장돼요</span>
+    </section>
+
+    <section class="month-head">
+      <div><p class="eyebrow">READING JOURNAL</p><h2 id="monthTitle">이번 달 독서</h2></div>
+      <div class="month-controls"><button id="prevMonth" aria-label="이전 달">‹</button><button id="nextMonth" aria-label="다음 달">›</button></div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat-card main-stat"><span>이번 달 읽은 권수</span><strong id="monthCount">0<span>권</span></strong><small id="monthSub">책을 읽을 때마다 기록해 보세요</small></article>
+      <article class="stat-card"><span>오늘 읽은 권수</span><strong id="todayCount">0<span>권</span></strong><small id="todaySub">오늘의 기록</small></article>
+      <article class="stat-card"><span>독서한 날</span><strong id="daysCount">0<span>일</span></strong><small>이번 달 기준</small></article>
+    </section>
+
+    <section class="calendar-card">
+      <div class="section-title"><div><h3>날짜별 독서량</h3><p>날짜를 누르면 그날 읽은 책을 볼 수 있어요.</p></div><span class="legend"><i></i> 읽은 날</span></div>
+      <div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div id="calendar" class="calendar"></div>
+    </section>
+
+    <section class="books-section">
+      <div class="section-title"><div><h3 id="selectedDateTitle">오늘 읽은 책</h3><p id="selectedDateSub">표지를 촬영해 책을 기록하세요.</p></div><button id="addBookBtn" class="primary-btn">＋ 책 기록</button></div>
+      <div id="bookList" class="book-list"></div>
+      <div id="emptyState" class="empty-state"><div class="empty-illustration">📚</div><strong>아직 기록한 책이 없어요</strong><p>책 표지를 찍어 첫 독서 기록을 남겨보세요.</p><button class="primary-btn" id="emptyAddBtn">첫 책 기록하기</button></div>
+    </section>
+
+    <section class="history-section">
+      <div class="section-title"><div><h3>이번 달 기록</h3><p>최근 등록한 책</p></div><span id="totalLabel" class="count-pill">0권</span></div>
+      <div id="recentList" class="recent-list"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-nav="home"><span>▦</span>독서 기록</button>
+    <button class="nav-item" data-nav="stats"><span>▥</span>월별 통계</button>
+    <button class="nav-item" data-nav="books"><span>▤</span>전체 기록</button>
+  </nav>
+
+  <dialog id="bookDialog" class="modal">
+    <form id="bookForm" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">NEW BOOK LOG</p><h2>책 기록하기</h2></div><button type="button" class="close-btn" data-close="bookDialog" aria-label="닫기">×</button></div>
+      <label class="photo-picker" for="coverInput">
+        <input id="coverInput" type="file" accept="image/*" capture="environment">
+        <img id="coverPreview" alt="선택한 책 표지 미리보기" hidden>
+        <span id="photoPlaceholder"><b>＋</b><strong>책 표지 촬영하기</strong><small>카메라가 열리거나 사진을 선택할 수 있어요</small></span>
+      </label>
+      <div id="ocrStatus" class="ocr-status" aria-live="polite">사진을 등록하면 제목을 자동으로 읽어볼 수 있어요.</div>
+      <button type="button" id="ocrBtn" class="secondary-btn" disabled>사진에서 제목 인식하기</button>
+      <label class="field-label" for="bookTitle">책 제목 <em>필수</em></label>
+      <input id="bookTitle" class="text-input" maxlength="180" placeholder="인식한 제목을 확인하거나 직접 입력" required>
+      <label class="field-label" for="readDate">읽은 날짜</label>
+      <input id="readDate" class="text-input" type="date" required>
+      <label class="field-label" for="memo">메모 <span>선택</span></label>
+      <textarea id="memo" class="text-input" rows="2" maxlength="500" placeholder="다시 읽음, 아이가 좋아한 부분 등"></textarea>
+      <div class="modal-actions"><button type="button" class="secondary-btn" data-close="bookDialog">취소</button><button type="submit" id="saveBookBtn" class="primary-btn">기록 저장</button></div>
+      <p class="privacy-note">사진과 기록은 이 기기에 저장됩니다. 클라우드 동기화는 설정에서 Supabase를 연결한 경우에만 사용할 수 있어요.</p>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="modal">
+    <form id="settingsForm" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">APP SETTINGS</p><h2>설정</h2></div><button type="button" class="close-btn" data-close="settingsDialog">×</button></div>
+      <div class="info-panel"><strong>현재 저장 방식</strong><p id="storageStatus">이 기기 저장</p><small>기기 저장은 이 브라우저 안에 보관됩니다. 브라우저 데이터 삭제 전 백업을 권장합니다.</small></div>
+      <h3 class="form-section-title">클라우드 동기화 연결</h3>
+      <p class="help-text">Supabase 프로젝트 URL과 공개 anon/publishable 키를 입력하면 로그인과 클라우드 동기화를 사용할 수 있습니다. 키는 앱 코드에 넣지 않고 이 기기에만 저장합니다.</p>
+      <label class="field-label" for="supabaseUrl">Supabase Project URL</label><input id="supabaseUrl" class="text-input" type="url" placeholder="https://xxxx.supabase.co">
+      <label class="field-label" for="supabaseKey">Supabase publishable / anon key</label><input id="supabaseKey" class="text-input" placeholder="eyJ..." autocomplete="off">
+      <label class="field-label" for="userEmail">로그인 이메일</label><input id="userEmail" class="text-input" type="email" placeholder="이메일 주소">
+      <div class="inline-actions"><button type="button" id="connectBtn" class="secondary-btn">연결 확인</button><button type="button" id="loginBtn" class="primary-btn">로그인 링크 받기</button></div>
+      <p id="cloudMessage" class="status-message" aria-live="polite"></p>
+      <div class="modal-actions"><button type="button" id="exportBtn" class="secondary-btn">기록 백업(JSON)</button><button type="button" class="primary-btn" data-close="settingsDialog">닫기</button></div>
+      <p class="privacy-note">동기화에는 Supabase 테이블과 Storage 버킷 설정이 필요합니다. 동봉된 README에 설정 SQL이 있습니다. 클라우드 연결 전에는 로컬 기록이 자동으로 업로드되지 않습니다.</p>
+    </form>
+  </dialog>
+
+  <dialog id="detailDialog" class="modal">
+    <div id="detailContent"></div>
+    <div class="modal-actions"><button type="button" class="secondary-btn" data-close="detailDialog">닫기</button></div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="./app.js"></script>
+
+<script>
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.error));
+}
+</script>
+\n</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "우리집 책기록",
+  "short_name": "책기록",
+  "description": "아이별 한글책 독서 기록과 통계",
+  "lang": "ko-KR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f5ef",
+  "theme_color": "#f7f5ef",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
